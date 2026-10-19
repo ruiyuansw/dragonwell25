@@ -5,6 +5,10 @@ name: 'RISC-V QEMU CI'
 # system-mode (5 parallel suites). Runs on self-hosted runners because the
 # jobs need the Xuantie toolchain image, the intranet QEMU builds and the
 # SystemMode SDK images.
+#
+# Build artifacts are exchanged through a shared directory on the runner host:
+# the egress proxy used here denies the Azure blob endpoints behind
+# actions/upload-artifact. Results are kept in $RESULT_CACHE for 7 days.
 
 on:
   push:
@@ -31,9 +35,10 @@ concurrency:
 
 env:
   IMAGE: art.damo.xrvm.cn/riscv-sw/openjdk/openjdk-buildtest-ub2204:v10
+  RUN_CACHE: /home/jenkins/ci-cache/runs
+  RESULT_CACHE: /home/jenkins/ci-cache/results
   SYSIMG_CACHE: /home/jenkins/ci-cache/sysmode-images
-  # Self-hosted runners are behind an intranet proxy; checkout and the
-  # artifact actions need it, test containers do not.
+  # Self-hosted runners are behind an intranet proxy; checkout needs it.
   http_proxy: http://11.122.133.68:3128
   https_proxy: http://11.122.133.68:3128
   no_proxy: localhost,127.0.0.1,10.0.0.0/8,11.0.0.0/8,172.16.0.0/12,192.168.0.0/16,.alibaba-inc.com,.xrvm.cn
@@ -49,30 +54,38 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: 'Prepare artifact directory'
+        run: |
+          SHARED="$RUN_CACHE/${{ github.run_id }}"
+          sudo -n mkdir -p "$SHARED" 2>/dev/null || mkdir -p "$SHARED"
+          sudo -n chown "$(id -u):$(id -g)" "$SHARED" 2>/dev/null || true
+          # Prune caches left behind by cancelled or very old runs.
+          find "$RUN_CACHE" -mindepth 1 -maxdepth 1 -mtime +7 -exec sudo -n rm -rf {} + 2>/dev/null || true
+          find "$RESULT_CACHE" -mindepth 1 -maxdepth 1 -mtime +7 -exec sudo -n rm -rf {} + 2>/dev/null || true
+
       - name: 'Cross-compile JDK 25'
         run: |
-          mkdir -p out
           docker run --rm --name "riscv-build-${{ github.run_id }}" \
             --cpus 30 -m 64g \
             -v "$PWD:/workspace/src" \
-            -v "$PWD/out:/workspace/out" \
+            -v "$RUN_CACHE/${{ github.run_id }}:/workspace/out" \
             -e BUILD_JOBS=28 \
             "$IMAGE" \
             bash /workspace/src/.github/riscv-ci/scripts/build.sh
 
-      - name: 'Upload JDK + source bundle'
-        uses: actions/upload-artifact@v4
-        with:
-          name: jdk-riscv64
-          path: out/*.tar.gz
-          retention-days: 7
-          if-no-files-found: error
+      - name: 'Verify bundles'
+        run: |
+          SHARED="$RUN_CACHE/${{ github.run_id }}"
+          ls -lh "$SHARED"
+          test -s "$SHARED/jdk-riscv64_bin.tar.gz"
+          test -s "$SHARED/jdk-riscv64_bin-tests.tar.gz"
+          test -s "$SHARED/source.tar.gz"
 
       - name: 'Cleanup'
         if: always()
         run: |
-          sudo -n rm -rf out 2>/dev/null || rm -rf out || true
           docker ps -aq --filter "name=riscv-build-${{ github.run_id }}" | xargs -r docker rm -f || true
+          sudo -n rm -rf build 2>/dev/null || rm -rf build || true
 
   usermode:
     name: 'usermode ${{ matrix.name }}'
@@ -96,16 +109,15 @@ jobs:
           - { name: hs_compiler_part3, target: 'test/hotspot/jtreg/:tier1_compiler_3' }
           - { name: lib_test, target: 'test/lib-test/:tier1' }
     steps:
-      - name: 'Download build artifacts'
-        uses: actions/download-artifact@v4
-        with:
-          name: jdk-riscv64
-          path: artifacts
+      - name: 'Prepare source tree'
+        run: |
+          mkdir -p src
+          tar xzf "$RUN_CACHE/${{ github.run_id }}/source.tar.gz" -C src
 
       - name: 'Run jtreg under QEMU user-mode'
         run: |
-          mkdir -p src out
-          tar xzf artifacts/source.tar.gz -C src
+          RESULT="$RESULT_CACHE/${{ github.run_id }}/usermode-${{ matrix.name }}"
+          mkdir -p "$RESULT"
           docker run --rm --name "riscv-um-${{ github.run_id }}-${{ matrix.name }}" \
             --cpus 8 -m 16g \
             -e TEST_TARGET='${{ matrix.target }}' \
@@ -113,25 +125,16 @@ jobs:
             -e TIMEOUT_FACTOR='${{ github.event.inputs.timeout_factor || 96 }}' \
             -e JTREG_JOBS=6 \
             -v "$PWD/src:/workspace/src" \
-            -v "$PWD/artifacts:/workspace/artifacts:ro" \
-            -v "$PWD/out:/workspace/out" \
+            -v "$RUN_CACHE/${{ github.run_id }}:/workspace/artifacts:ro" \
+            -v "$RESULT:/workspace/out" \
             "$IMAGE" \
             bash /workspace/src/.github/riscv-ci/scripts/usermode-test.sh
-
-      - name: 'Upload test results'
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: usermode-${{ matrix.name }}
-          path: out/
-          retention-days: 7
-          if-no-files-found: ignore
 
       - name: 'Cleanup'
         if: always()
         run: |
-          sudo -n rm -rf src artifacts out 2>/dev/null || rm -rf src artifacts out || true
           docker ps -aq --filter "name=riscv-um-${{ github.run_id }}-${{ matrix.name }}" | xargs -r docker rm -f || true
+          sudo -n rm -rf src out 2>/dev/null || rm -rf src out || true
 
   systemmode:
     name: 'systemmode ${{ matrix.name }}'
@@ -148,39 +151,40 @@ jobs:
           - { name: hotspot_part1, suite: hotspot_part1 }
           - { name: hotspot_part2, suite: hotspot_part2 }
     steps:
-      - name: 'Download build artifacts'
-        uses: actions/download-artifact@v4
-        with:
-          name: jdk-riscv64
-          path: artifacts
+      - name: 'Prepare source tree'
+        run: |
+          mkdir -p src
+          tar xzf "$RUN_CACHE/${{ github.run_id }}/source.tar.gz" -C src
 
       - name: 'Run jtreg inside QEMU system-mode guest'
         run: |
-          mkdir -p src out
-          tar xzf artifacts/source.tar.gz -C src
+          RESULT="$RESULT_CACHE/${{ github.run_id }}/systemmode-${{ matrix.name }}"
+          mkdir -p "$RESULT"
           docker run --rm --privileged \
             --name "riscv-sm-${{ github.run_id }}-${{ matrix.name }}" \
             --cpus 14 -m 40g \
             -e SUITE='${{ matrix.suite }}' \
             -e SMP=14 -e MEMORY=28G -e VM_TIMEOUT=21600 \
             -v "$PWD/src:/workspace/src" \
-            -v "$PWD/artifacts:/workspace/artifacts:ro" \
-            -v "$PWD/out:/workspace/out" \
+            -v "$RUN_CACHE/${{ github.run_id }}:/workspace/artifacts:ro" \
+            -v "$RESULT:/workspace/out" \
             -v "$SYSIMG_CACHE:/opt/sysmode-images:ro" \
             "$IMAGE" \
             bash /workspace/src/.github/riscv-ci/scripts/systemmode-test.sh
 
-      - name: 'Upload test results'
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: systemmode-${{ matrix.name }}
-          path: out/
-          retention-days: 7
-          if-no-files-found: ignore
-
       - name: 'Cleanup'
         if: always()
         run: |
-          sudo -n rm -rf src artifacts out 2>/dev/null || rm -rf src artifacts out || true
           docker ps -aq --filter "name=riscv-sm-${{ github.run_id }}-${{ matrix.name }}" | xargs -r docker rm -f || true
+          sudo -n rm -rf src out 2>/dev/null || rm -rf src out || true
+
+  cleanup:
+    name: 'cleanup run cache'
+    needs: [build, usermode, systemmode]
+    if: always()
+    runs-on: [self-hosted, riscv-ci]
+    timeout-minutes: 15
+    steps:
+      - name: 'Remove build bundles (results are kept for 7 days)'
+        run: |
+          sudo -n rm -rf "$RUN_CACHE/${{ github.run_id }}" 2>/dev/null || rm -rf "$RUN_CACHE/${{ github.run_id }}" || true

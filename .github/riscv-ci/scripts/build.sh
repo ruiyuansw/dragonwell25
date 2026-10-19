@@ -53,7 +53,10 @@ tar czf "$OUT_DIR/jdk-riscv64_bin.tar.gz" -C "${BUILD_DIR}/images" jdk
 tar czf "$OUT_DIR/jdk-riscv64_bin-tests.tar.gz" -C "${BUILD_DIR}/images" test
 
 # Pristine source for the test jobs (they each configure their own tree).
-tar czf "$OUT_DIR/source.tar.gz" --exclude=./build --exclude=./.git -C "$SRC_DIR" .
+# Write outside the tree: when OUT_DIR is below SRC_DIR, tar would otherwise
+# read the archive it is still writing ("file changed as we read it").
+tar czf /tmp/source.tar.gz --exclude=./build --exclude=./.git --exclude=./out -C "$SRC_DIR" .
+mv /tmp/source.tar.gz "$OUT_DIR/source.tar.gz"
 
 ls -lh "$OUT_DIR"
 sha256sum "$OUT_DIR"/*.tar.gz

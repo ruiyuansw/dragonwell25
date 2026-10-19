@@ -31,6 +31,16 @@ test is not version 25.
 The SystemMode images come from the internal Xuantie Linux SDK. If the cache is
 absent the script downloads the SDK tarball from `11.122.130.22` instead.
 
+## Artifacts
+
+The intranet egress proxy does not allow the Azure blob endpoints used by
+`actions/upload-artifact`, so the jobs exchange files through the runner host:
+
+- `/home/jenkins/ci-cache/runs/<run-id>/` — JDK bundles and `source.tar.gz`,
+  removed when the run finishes.
+- `/home/jenkins/ci-cache/results/<run-id>/<job>/` — jtreg reports and logs,
+  kept for 7 days.
+
 ## Triggering
 
 - Push to `master`, or open a pull request against `master`.
