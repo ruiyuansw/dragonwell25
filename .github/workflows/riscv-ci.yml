@@ -91,9 +91,10 @@ jobs:
     name: 'usermode ${{ matrix.name }}'
     needs: build
     runs-on: [self-hosted, riscv-ci]
-    timeout-minutes: 420
+    timeout-minutes: 900
     strategy:
       fail-fast: false
+      max-parallel: 4
       matrix:
         include:
           - { name: jdk_part1, target: 'test/jdk/:tier1_part1' }
@@ -118,7 +119,7 @@ jobs:
         run: |
           RESULT="$RESULT_CACHE/${{ github.run_id }}/usermode-${{ matrix.name }}"
           mkdir -p "$RESULT"
-          docker run --rm --name "riscv-um-${{ github.run_id }}-${{ matrix.name }}" \
+          docker run --rm -t --name "riscv-um-${{ github.run_id }}-${{ matrix.name }}" \
             --cpus 8 -m 16g \
             -e TEST_TARGET='${{ matrix.target }}' \
             -e JVM_OPTIONS='${{ github.event.inputs.jvm_options }}' \
@@ -140,9 +141,10 @@ jobs:
     name: 'systemmode ${{ matrix.name }}'
     needs: build
     runs-on: [self-hosted, riscv-ci]
-    timeout-minutes: 480
+    timeout-minutes: 900
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         include:
           - { name: targeted_jdk, suite: targeted_jdk }
@@ -162,9 +164,9 @@ jobs:
           mkdir -p "$RESULT"
           docker run --rm --privileged \
             --name "riscv-sm-${{ github.run_id }}-${{ matrix.name }}" \
-            --cpus 14 -m 40g \
+            --cpus 12 -m 36g \
             -e SUITE='${{ matrix.suite }}' \
-            -e SMP=14 -e MEMORY=28G -e VM_TIMEOUT=21600 \
+            -e SMP=10 -e MEMORY=24G -e VM_TIMEOUT=43200 \
             -v "$PWD/src:/workspace/src" \
             -v "$RUN_CACHE/${{ github.run_id }}:/workspace/artifacts:ro" \
             -v "$RESULT:/workspace/out" \

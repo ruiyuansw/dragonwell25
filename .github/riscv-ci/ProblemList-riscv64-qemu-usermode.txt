@@ -449,6 +449,7 @@ java/util/Currency/PropertiesTestRun.java QEMU generic-all
 # Category C: ProcessBuilder/System tests (QEMU user-mode process limitations)
 java/lang/ProcessBuilder/Basic.java#id0 QEMU generic-all
 java/lang/ProcessBuilder/Basic.java#id1 QEMU generic-all
+java/lang/ProcessBuilder/Basic.java#id2 QEMU generic-all
 java/lang/ProcessBuilder/FDLeakTest/FDLeakTest.java#fork QEMU generic-all
 java/lang/ProcessBuilder/FDLeakTest/FDLeakTest.java#posix_spawn QEMU generic-all
 java/lang/ProcessBuilder/FDLeakTest/FDLeakTest.java#vfork QEMU generic-all
