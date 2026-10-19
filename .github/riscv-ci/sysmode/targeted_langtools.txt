@@ -1,0 +1,6 @@
+test/langtools/jdk/jshell/JdiBadOptionLaunchExecutionControlTest.java
+test/langtools/tools/javac/6394683/T6394683.java
+test/langtools/tools/javac/plugin/AutostartPlugins.java
+test/langtools/tools/javac/plugin/InternalAPI.java
+test/langtools/tools/javac/processing/T6920317.java
+test/langtools/jdk/jshell/LocalStopExecutionTest.java

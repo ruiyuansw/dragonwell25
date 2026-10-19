@@ -62,7 +62,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: dragonwell-releng/check_commit_action@master
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.repository_owner == 'dragonwell-project'
 
   ###
   ### Determine platforms to include
@@ -71,6 +71,9 @@ jobs:
   prepare:
     name: 'Prepare the run'
     runs-on: ubuntu-24.04
+    # GitHub-hosted and platform-specific runners are unavailable in forks;
+    # every job below depends on this one, so gate the whole workflow here.
+    if: github.repository_owner == 'dragonwell-project'
     env:
       # List of platforms to exclude by default
       EXCLUDED_PLATFORMS: 'alpine-linux-x64'

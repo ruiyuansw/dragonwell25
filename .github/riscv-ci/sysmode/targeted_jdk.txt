@@ -1,0 +1,11 @@
+test/jdk/java/lang/ProcessBuilder/Basic.java
+test/jdk/java/lang/String/CompactString/MaxSizeUTF16String.java
+test/jdk/java/lang/System/LoggerFinder/modules/JDKLoggerForImageTest.java
+test/jdk/java/lang/System/LoggerFinder/modules/LoggerInImageTest.java
+test/jdk/java/lang/System/LoggerFinder/modules/NamedLoggerForImageTest.java
+test/jdk/java/lang/System/LoggerFinder/modules/UnnamedLoggerForImageTest.java
+test/jdk/java/lang/System/OsVersionTest.java
+test/jdk/java/util/Currency/PropertiesTestRun.java
+test/jdk/jdk/modules/etc/DefaultModules.java
+test/jdk/jdk/modules/incubator/ImageModules.java
+test/jdk/java/util/zip/ZipFile/ZipSourceCache.java

@@ -1,0 +1,583 @@
+###############################################################################
+# ProblemList-jdk25u-v1.txt
+#
+# jdk25u (JDK 25 update) copy of ProblemList-riscv64-qemu-usermode-v11.txt.
+# Initial copy for pipeline bring-up; entries are pruned at runtime against the
+# jdk25u source tree and this file is maintained during debugging.
+#
+# Tests excluded from QEMU user-mode CI execution.
+# These tests fail due to QEMU environment limitations, NOT JDK code bugs.
+# They should be verified on FPGA or real hardware.
+#
+# Format: <test> <bug_id> <platform>
+# Using "QEMU" as pseudo-bug-id for environment-specific exclusions.
+###############################################################################
+
+###############################################################################
+# Category A2: Escape Analysis / GC Barriers / IGVN timeout
+# Root cause: Same as Category B — IR Framework subprocess timeout under QEMU.
+# These tests use IR verification internally and hang during compilation.
+###############################################################################
+
+compiler/escapeAnalysis/TestRematerializeObjects.java#nEA QEMU generic-all
+compiler/escapeAnalysis/TestRematerializeObjects.java#yEA QEMU generic-all
+compiler/gcbarriers/TestG1BarrierGeneration.java QEMU generic-all
+compiler/gcbarriers/TestImplicitNullChecks.java QEMU generic-all
+compiler/gcbarriers/TestMinMaxLongLoopBarrier.java QEMU generic-all
+compiler/gcbarriers/TestShenandoahBarrierExpansion.java QEMU generic-all
+compiler/gcbarriers/TestZGCBarrierElision.java#id0 QEMU generic-all
+compiler/gcbarriers/TestZGCUnrolling.java QEMU generic-all
+compiler/igvn/CmpDisjointButNonOrderedRangesLong.java QEMU generic-all
+compiler/igvn/IntegerDivValueTests.java QEMU generic-all
+compiler/igvn/TestMinMaxIdeal.java QEMU generic-all
+compiler/integerArithmetic/TestOrSaturate.java QEMU generic-all
+
+###############################################################################
+# Root cause: QEMU user-mode thread scheduling differs from native,
+# causing object monitor enter races to behave differently.
+###############################################################################
+
+
+###############################################################################
+# Category B: IR Framework socket/thread timeout
+# Root cause: IR Framework tests launch a Test VM subprocess via QEMU.
+# Under concurrent execution (TEST_JOBS=6), multiple QEMU JVM startups
+# compete for CPU, causing jtreg per-test timeout to expire while the
+# serverSocket.accept() thread is still waiting for the Test VM to connect.
+# The leftover thread triggers "Error while cleaning up threads after test".
+###############################################################################
+
+# compiler/c2/irTests — all IR idealization/optimization tests use IR Framework
+compiler/c2/irTests/AddINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/AddLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/AndINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/AndLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/CMoveLConstants.java QEMU generic-all
+compiler/c2/irTests/CmpUWithZero.java QEMU generic-all
+compiler/c2/irTests/ConstructorBarriers.java QEMU generic-all
+compiler/c2/irTests/ConvF2HFIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/DeMorganLawIntTests.java QEMU generic-all
+compiler/c2/irTests/DeMorganLawLongTests.java QEMU generic-all
+compiler/c2/irTests/DivINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/DivLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/FPModWithoutControlProj.java QEMU generic-all
+compiler/c2/irTests/LShiftINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/LShiftLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/MaxMinINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/ModDNodeTests.java QEMU generic-all
+compiler/c2/irTests/ModFNodeTests.java QEMU generic-all
+compiler/c2/irTests/ModINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/ModLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/MulHFNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/MulINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/MulLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/OrINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/OrLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/ProfileAtTypeCheck.java QEMU generic-all
+compiler/c2/irTests/RotateLeftNodeIntIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/RotateLeftNodeLongIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/RShiftINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/RShiftLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/SubINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/SubLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/TestArrayElementTypeLoad.java QEMU generic-all
+compiler/c2/irTests/TestBackToBackIfs.java QEMU generic-all
+compiler/c2/irTests/TestBackToBackMustBeNotNull.java QEMU generic-all
+compiler/c2/irTests/TestCMoveCCP.java QEMU generic-all
+compiler/c2/irTests/TestContinuationPinningAndEA.java QEMU generic-all
+compiler/c2/irTests/TestConvI2LCastLongLoop.java QEMU generic-all
+compiler/c2/irTests/TestCountedLoopPhiValue.java QEMU generic-all
+compiler/c2/irTests/TestCountedLoopSafepoint.java QEMU generic-all
+compiler/c2/irTests/TestDebugInfo.java QEMU generic-all
+compiler/c2/irTests/TestEnumFinalFold.java QEMU generic-all
+compiler/c2/irTests/TestFewIterationsCountedLoop.java QEMU generic-all
+compiler/c2/irTests/TestFloat16ScalarOperations.java QEMU generic-all
+compiler/c2/irTests/TestFPComparison.java QEMU generic-all
+compiler/c2/irTests/TestFPConversion.java QEMU generic-all
+compiler/c2/irTests/TestIfMinMax.java QEMU generic-all
+compiler/c2/irTests/TestIRAbs.java QEMU generic-all
+compiler/c2/irTests/TestIRFma.java QEMU generic-all
+compiler/c2/irTests/TestIRLShiftIdeal_XPlusX_LShiftC.java QEMU generic-all
+compiler/c2/irTests/TestIterativeEA.java QEMU generic-all
+compiler/c2/irTests/TestLongRangeChecks.java QEMU generic-all
+compiler/c2/irTests/TestLSMMissedEmptyLoop.java QEMU generic-all
+compiler/c2/irTests/TestMinMaxIdentities.java QEMU generic-all
+compiler/c2/irTests/TestMulNodeIdealization.java QEMU generic-all
+compiler/c2/irTests/igvn/TestIntegerMulRing.java QEMU generic-all
+compiler/c2/irTests/igvn/TestLoadNIdeal.java QEMU generic-all
+compiler/c2/irTests/loopOpts/LoopIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/scalarReplacement/ScalarReplacementTests.java QEMU generic-all
+compiler/c2/irTests/scalarReplacement/ScalarReplacementWithGCBarrierTests.java QEMU generic-all
+compiler/c2/irTests/stable/StablePrimArrayTest.java QEMU generic-all
+compiler/c2/irTests/stable/StablePrimFinalTest.java QEMU generic-all
+compiler/c2/irTests/stable/StablePrimPlainTest.java QEMU generic-all
+compiler/c2/irTests/stable/StablePrimVolatileTest.java QEMU generic-all
+compiler/c2/irTests/stable/StableRefArrayTest.java QEMU generic-all
+compiler/c2/irTests/stable/StableRefFinalTest.java QEMU generic-all
+compiler/c2/irTests/stable/StableRefPlainTest.java QEMU generic-all
+compiler/c2/irTests/stable/StableRefVolatileTest.java QEMU generic-all
+compiler/c2/irTests/stringopts/TestNegativeArraySize.java QEMU generic-all
+compiler/c2/irTests/blackhole/BlackholeHotInlineTest.java QEMU generic-all
+compiler/c2/irTests/blackhole/BlackholeLoadOptoTest.java QEMU generic-all
+compiler/c2/irTests/blackhole/BlackholeStoreStoreEATest.java QEMU generic-all
+compiler/c2/irTests/blackhole/BlackholeSyncEATest.java QEMU generic-all
+compiler/c2/irTests/gc/ReferenceClearTests.java QEMU generic-all
+compiler/c2/irTests/gc/ReferenceRefersToTests.java QEMU generic-all
+
+# compiler/c2/gvn — GVN tests also use IR Framework
+compiler/c2/gvn/CmpUNodeValueTests.java QEMU generic-all
+compiler/c2/gvn/ModINodeValueTests.java QEMU generic-all
+compiler/c2/gvn/ModLNodeValueTests.java QEMU generic-all
+compiler/c2/gvn/ReverseBytesConstantsTests.java QEMU generic-all
+compiler/c2/gvn/TestBitCompressValueTransform.java QEMU generic-all
+compiler/c2/gvn/TestBoolNodeGVN.java QEMU generic-all
+compiler/c2/gvn/TestCollapsingSameTermAdditions.java QEMU generic-all
+compiler/c2/gvn/TestCompressExpandTopInput.java QEMU generic-all
+compiler/c2/gvn/TestCountBitsRange.java QEMU generic-all
+
+# compiler/c2/cmove — Conditional move tests use IR Framework
+compiler/c2/cmove/TestConditionalMove.java QEMU generic-all
+compiler/c2/cmove/TestScalarConditionalMoveCmpObj.java QEMU generic-all
+
+# compiler/c2 — other IR Framework dependent tests
+compiler/c2/cr7200264/TestIntVect.java QEMU generic-all
+compiler/c2/TestCastX2NotProcessedIGVN.java QEMU generic-all
+compiler/c2/aarch64/TestFloat16Replicate.java QEMU generic-all
+
+# compiler/blackhole — Blackhole tests require specific JIT modes
+compiler/blackhole/DeadBhElimination.java QEMU generic-all
+
+###############################################################################
+# Category E: SA (Serviceability Agent) — cross-architecture attach impossible
+# Root cause: SA uses ptrace to attach to the target JVM process. Under QEMU
+# user-mode, the JVM process is actually a QEMU process (x86), but SA expects
+# a RISC-V process. The architecture mismatch causes DebuggerException.
+###############################################################################
+serviceability/sa/ClhsdbCDSCore.java QEMU generic-all
+serviceability/sa/ClhsdbCDSJstackPrintAll.java QEMU generic-all
+serviceability/sa/ClhsdbFindPC.java#no-xcomp-core QEMU generic-all
+serviceability/sa/ClhsdbFindPC.java#xcomp-core QEMU generic-all
+serviceability/sa/ClhsdbPmap.java#core QEMU generic-all
+serviceability/sa/ClhsdbPstack.java#core QEMU generic-all
+serviceability/sa/CDSJMapClstats.java QEMU generic-all
+
+###############################################################################
+# Category F: RSS/memory reporting inaccurate under QEMU
+# Root cause: /proc/self/status RSS reports host QEMU process memory, not the
+# emulated JVM's actual physical memory usage. AlwaysPreTouch test checks
+# RSS >= heap size, which fails because QEMU doesn't map guest pages 1:1.
+###############################################################################
+gc/TestAlwaysPreTouchBehavior.java#Epsilon QEMU generic-all
+gc/TestAlwaysPreTouchBehavior.java#G1 QEMU generic-all
+gc/TestAlwaysPreTouchBehavior.java#ParallelCollector QEMU generic-all
+gc/TestAlwaysPreTouchBehavior.java#SerialCollector QEMU generic-all
+gc/TestAlwaysPreTouchBehavior.java#Shenandoah QEMU generic-all
+gc/TestAlwaysPreTouchBehavior.java#Z QEMU generic-all
+
+###############################################################################
+# Category G: Transparent Huge Pages not supported in QEMU user-mode
+###############################################################################
+gc/TestTransparentHugePagesHeap.java#G1 QEMU generic-all
+gc/TestTransparentHugePagesHeap.java#Parallel QEMU generic-all
+gc/TestTransparentHugePagesHeap.java#Serial QEMU generic-all
+
+###############################################################################
+# Category H: OS version mismatch (sysroot vs host kernel)
+###############################################################################
+java/lang/System/OsVersionTest.java QEMU generic-all
+
+
+###############################################################################
+# Additional exclusions from pipeline 1040935 full failure analysis
+# Added: 2026-06-03
+###############################################################################
+
+# Category A: GTest (already partially covered, adding variants)
+gtest/GTestWrapper.java QEMU generic-all
+gtest/NMTGtests.java#nmt-detail QEMU generic-all
+gtest/NMTGtests.java#nmt-off QEMU generic-all
+gtest/NMTGtests.java#nmt-summary QEMU generic-all
+
+# Category B2: SuperWord/LoopOpts IR Framework timeout (QEMU user-mode)
+compiler/loopopts/InvariantCodeMotionReassociateAddSub.java QEMU generic-all
+compiler/loopopts/InvariantCodeMotionReassociateCmp.java QEMU generic-all
+compiler/loopopts/TestArrayFillIntrinsic.java QEMU generic-all
+compiler/loopopts/TestCountedLoopCastIV.java QEMU generic-all
+compiler/loopopts/TestLoopLimitSubtractionsCollapse.java QEMU generic-all
+compiler/loopopts/TestReassociateInvariants.java QEMU generic-all
+compiler/loopopts/TestRedundantSafepointElimination.java QEMU generic-all
+compiler/loopopts/TestSplitThruPhiInfinitely.java QEMU generic-all
+compiler/loopopts/TestUnswitchPredicateCloning.java QEMU generic-all
+compiler/loopopts/parallel_iv/TestParallelIvInIntCountedLoop.java QEMU generic-all
+compiler/loopopts/superword/MinMaxRed_Int.java QEMU generic-all
+compiler/loopopts/superword/MinMaxRed_Long.java QEMU generic-all
+compiler/loopopts/superword/ProdRed_Double.java QEMU generic-all
+compiler/loopopts/superword/ProdRed_Float.java QEMU generic-all
+compiler/loopopts/superword/ProdRed_Int.java QEMU generic-all
+compiler/loopopts/superword/RedTest_int.java QEMU generic-all
+compiler/loopopts/superword/RedTest_long.java QEMU generic-all
+compiler/loopopts/superword/SumRedAbsNeg_Double.java QEMU generic-all
+compiler/loopopts/superword/SumRedAbsNeg_Float.java QEMU generic-all
+compiler/loopopts/superword/SumRedSqrt_Double.java QEMU generic-all
+compiler/loopopts/superword/SumRed_Double.java QEMU generic-all
+compiler/loopopts/superword/SumRed_Float.java QEMU generic-all
+compiler/loopopts/superword/SumRed_Int.java QEMU generic-all
+compiler/loopopts/superword/SumRed_Long.java QEMU generic-all
+compiler/loopopts/superword/TestAliasing.java QEMU generic-all
+compiler/loopopts/superword/TestAliasingFuzzer.java#random-flags QEMU generic-all
+compiler/loopopts/superword/TestAliasingFuzzer.java#vanilla QEMU generic-all
+compiler/loopopts/superword/TestAlignVector.java#AlignVector QEMU generic-all
+compiler/loopopts/superword/TestAlignVector.java#NoAlignVector QEMU generic-all
+compiler/loopopts/superword/TestAlignVector.java#NoAlignVector-COH QEMU generic-all
+compiler/loopopts/superword/TestAlignVector.java#VerifyAlignVector QEMU generic-all
+compiler/loopopts/superword/TestAlignVector.java#VerifyAlignVector-COH QEMU generic-all
+compiler/loopopts/superword/TestAutoVectorizationOverrideProfitability.java QEMU generic-all
+compiler/loopopts/superword/TestCompatibleUseDefTypeSize.java QEMU generic-all
+compiler/loopopts/superword/TestCyclicDependency.java QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vanilla-A QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vanilla-U QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v004-A QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v004-U QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v008-A QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v008-U QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v016-A QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v016-U QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v032-A QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v032-U QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v064-A QEMU generic-all
+compiler/loopopts/superword/TestDependencyOffsets.java#vec-v064-U QEMU generic-all
+compiler/loopopts/superword/TestEquivalentInvariants.java QEMU generic-all
+compiler/loopopts/superword/TestGeneralizedReductions.java QEMU generic-all
+compiler/loopopts/superword/TestIndependentPacksWithCyclicDependency.java QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-array-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-array-AlignVector-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-array-AlignVector-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-array-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-array-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-array-NoSpeculativeAliasingCheck-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-buffer QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#byte-buffer-direct QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#char-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#double-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#float-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#int-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#int-array-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#long-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#long-array-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#native QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#native-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#native-AlignVector-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#native-AlignVector-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#native-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#native-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#native-NoSpeculativeAliasingCheck-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment.java#short-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-array-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-array-AlignVector-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-array-AlignVector-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-array-NoAutoAlignment QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-array-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-array-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-array-NoSpeculativeAliasingCheck-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-buffer QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#byte-buffer-direct QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#char-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#double-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#float-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#int-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#int-array-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#int-array-AlignVector-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#int-array-NoAutoAlignment QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#int-array-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#int-array-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#int-array-NoSpeculativeAliasingCheck-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#long-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#long-array-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#long-array-AlignVector-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#long-array-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#native QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#native-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#native-AlignVector-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#native-AlignVector-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#native-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#native-NoSpeculativeAliasingCheck QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#native-NoSpeculativeAliasingCheck-NoShortRunningLongLoop QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentAliasing.java#short-array QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentByteSizeLongLoopLimit.java QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentField.java QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentFilterSummands.java QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentUnalignedAddress.java#byte-buffer-direct QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentUnalignedAddress.java#byte-buffer-direct-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentUnalignedAddress.java#byte-buffer-direct-VerifyAlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentUnalignedAddress.java#native QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentUnalignedAddress.java#native-AlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegmentUnalignedAddress.java#native-VerifyAlignVector QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment_ReassociateInvariants1.java QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment_ReassociateInvariants2.java QEMU generic-all
+compiler/loopopts/superword/TestMemorySegment_SubOfShift.java QEMU generic-all
+compiler/loopopts/superword/TestMulAddS2I.java QEMU generic-all
+compiler/loopopts/superword/TestMultiversionRemoveUselessSlowLoop.java QEMU generic-all
+compiler/loopopts/superword/TestPeelMainPostNoMultiversioning.java QEMU generic-all
+compiler/loopopts/superword/TestReductions.java#force-vectorization QEMU generic-all
+compiler/loopopts/superword/TestReductions.java#no-vectorization QEMU generic-all
+compiler/loopopts/superword/TestReductions.java#vanilla QEMU generic-all
+compiler/loopopts/superword/TestReinterpretAndCast.java QEMU generic-all
+compiler/loopopts/superword/TestScheduleReordersScalarMemops.java QEMU generic-all
+compiler/loopopts/superword/TestSplitPacks.java QEMU generic-all
+compiler/loopopts/superword/TestUnorderedReduction.java#MaxVectorSize16-Unaligned QEMU generic-all
+compiler/loopopts/superword/TestUnorderedReduction.java#MaxVectorSize32-Aligned QEMU generic-all
+compiler/loopopts/superword/TestUnorderedReduction.java#Vanilla-Aligned QEMU generic-all
+compiler/loopopts/superword/TestUnorderedReduction.java#Vanilla-Unaligned QEMU generic-all
+compiler/loopopts/superword/TestUnorderedReductionPartialVectorization.java QEMU generic-all
+compiler/loopopts/superword/TestVectorFPReduction.java QEMU generic-all
+
+# Category B3: Vectorization IR Framework timeout (QEMU user-mode)
+compiler/vectorization/TestBufferVectorization.java QEMU generic-all
+compiler/vectorization/TestFloat16ToFloatConv.java QEMU generic-all
+compiler/vectorization/TestFloat16VectorOperations.java QEMU generic-all
+compiler/vectorization/TestFloatConversionsVector.java QEMU generic-all
+compiler/vectorization/TestOptionVectorizeIR.java QEMU generic-all
+compiler/vectorization/TestRotateByteAndShortVector.java QEMU generic-all
+compiler/vectorization/TestSubwordReverseBytes.java QEMU generic-all
+compiler/vectorization/TestSubwordTruncation.java QEMU generic-all
+compiler/vectorization/TestVectorAlgorithms.java#noOptimizeFill QEMU generic-all
+compiler/vectorization/TestVectorAlgorithms.java#noSuperWord QEMU generic-all
+compiler/vectorization/TestVectorAlgorithms.java#vanilla QEMU generic-all
+compiler/vectorization/runner/ArrayCopyTest.java QEMU generic-all
+compiler/vectorization/runner/ArrayIndexFillTest.java QEMU generic-all
+compiler/vectorization/runner/ArrayInvariantFillTest.java QEMU generic-all
+compiler/vectorization/runner/ArrayShiftOpTest.java QEMU generic-all
+compiler/vectorization/runner/ArrayTypeConvertTest.java QEMU generic-all
+compiler/vectorization/runner/ArrayUnsafeOpTest.java QEMU generic-all
+compiler/vectorization/runner/BasicBooleanOpTest.java QEMU generic-all
+compiler/vectorization/runner/BasicByteOpTest.java QEMU generic-all
+compiler/vectorization/runner/BasicCharOpTest.java QEMU generic-all
+compiler/vectorization/runner/BasicDoubleOpTest.java QEMU generic-all
+compiler/vectorization/runner/BasicFloatOpTest.java QEMU generic-all
+compiler/vectorization/runner/BasicIntOpTest.java QEMU generic-all
+compiler/vectorization/runner/BasicLongOpTest.java QEMU generic-all
+compiler/vectorization/runner/BasicShortOpTest.java QEMU generic-all
+compiler/vectorization/runner/LoopCombinedOpTest.java QEMU generic-all
+compiler/vectorization/runner/LoopControlFlowTest.java QEMU generic-all
+compiler/vectorization/runner/LoopLiveOutNodesTest.java QEMU generic-all
+compiler/vectorization/runner/LoopRangeStrideTest.java QEMU generic-all
+compiler/vectorization/runner/LoopReductionOpTest.java QEMU generic-all
+compiler/vectorization/runner/MultipleLoopsTest.java QEMU generic-all
+compiler/vectorization/runner/StripMinedLoopTest.java QEMU generic-all
+
+# Category B4: C2 IR Framework timeout - additional tests (QEMU user-mode)
+compiler/c2/TestDivModNodes.java QEMU generic-all
+compiler/c2/TestMergeStores.java#id0 QEMU generic-all
+compiler/c2/TestMergeStores.java#id1 QEMU generic-all
+compiler/c2/TestMergeStores.java#id2 QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#byte-array QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#byte-buffer QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#byte-buffer-direct QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#char-array QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#double-array QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#float-array QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#int-array QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#long-array QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#native QEMU generic-all
+compiler/c2/TestMergeStoresMemorySegment.java#short-array QEMU generic-all
+compiler/c2/TestMinMaxSubword.java QEMU generic-all
+compiler/c2/TestReducePhiOnCmpWithNoOptPtrCompare.java QEMU generic-all
+compiler/c2/TestReplaceNarrowPhiWithBottomPhi.java QEMU generic-all
+compiler/c2/aarch64/TestFloat16Replicate.java QEMU generic-all
+compiler/c2/irTests/TestOptimizeUnstableIf.java QEMU generic-all
+compiler/c2/irTests/TestPhiDuplicatedConversion.java QEMU generic-all
+compiler/c2/irTests/TestPostParseCallDevirtualization.java QEMU generic-all
+compiler/c2/irTests/TestPrunedExHandler.java QEMU generic-all
+compiler/c2/irTests/TestPushAddThruCast.java QEMU generic-all
+compiler/c2/irTests/TestRemixAddressExpressions.java QEMU generic-all
+compiler/c2/irTests/TestScalarReplacement.java QEMU generic-all
+compiler/c2/irTests/TestScheduleSmallMethod.java QEMU generic-all
+compiler/c2/irTests/TestShiftAndMask.java QEMU generic-all
+compiler/c2/irTests/TestSkeletonPredicates.java QEMU generic-all
+compiler/c2/irTests/TestSpecialCasesOf_AMinusB_Plus_CMinusD_InAddIdeal.java QEMU generic-all
+compiler/c2/irTests/TestStripMiningDropsSafepoint.java QEMU generic-all
+compiler/c2/irTests/TestSuperwordFailsUnrolling.java QEMU generic-all
+compiler/c2/irTests/TestTypeSpeculation.java QEMU generic-all
+compiler/c2/irTests/TestUnsignedComparison.java QEMU generic-all
+compiler/c2/irTests/TestVectorizationMismatchedAccess.java QEMU generic-all
+compiler/c2/irTests/TestVectorizationNotRun.java QEMU generic-all
+compiler/c2/irTests/UDivINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/UDivLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/UModINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/UModLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/URShiftINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/URShiftLNodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/XorINodeIdealizationTests.java QEMU generic-all
+compiler/c2/irTests/XorLNodeIdealizationTests.java QEMU generic-all
+
+# Category B5: Intrinsics IR Framework timeout (QEMU user-mode)
+compiler/intrinsics/TestCompareUnsigned.java QEMU generic-all
+compiler/intrinsics/TestDoubleIsFinite.java QEMU generic-all
+compiler/intrinsics/TestDoubleIsInfinite.java QEMU generic-all
+compiler/intrinsics/TestFloatIsFinite.java QEMU generic-all
+compiler/intrinsics/TestFloatIsInfinite.java QEMU generic-all
+compiler/intrinsics/TestIntegerUnsignedDivMod.java QEMU generic-all
+compiler/intrinsics/TestLongUnsignedDivMod.java QEMU generic-all
+compiler/intrinsics/TestPopCountValueTransforms.java QEMU generic-all
+compiler/intrinsics/TestReturnOopSetForJFRWriteCheckpoint.java QEMU generic-all
+compiler/intrinsics/float16/TestFloat16MaxMinSpecialValues.java QEMU generic-all
+compiler/intrinsics/math/TestMinMaxInlining.java QEMU generic-all
+compiler/intrinsics/math/TestMinMaxOpt.java QEMU generic-all
+compiler/intrinsics/string/TestOpaqueConstantBoolNodes.java QEMU generic-all
+
+# Category B6: Floating-point IR Framework timeout (QEMU user-mode)
+compiler/floatingpoint/ScalarFPtoIntCastTest.java QEMU generic-all
+compiler/floatingpoint/TestSubNodeFloatDoubleNegation.java QEMU generic-all
+
+# Category B7: IGVN additional tests (QEMU user-mode)
+compiler/igvn/ExpressionFuzzer.java QEMU generic-all
+compiler/igvn/TestMinMaxIdentity.java QEMU generic-all
+
+# Category B8: Macronodes/predicates/runtime/types/unsafe (QEMU user-mode)
+compiler/macronodes/TestInitializingStoreCapturing.java QEMU generic-all
+compiler/predicates/TestDisabledLoopPredicates.java QEMU generic-all
+compiler/predicates/TestPredicatesBasic.java QEMU generic-all
+compiler/runtime/safepoints/TestMachTempsAcrossSafepoints.java QEMU generic-all
+compiler/types/TestSubTypeCheckUniqueSubclass.java QEMU generic-all
+compiler/unsafe/OpaqueAccesses.java QEMU generic-all
+
+# Category C2: Misc JDK tests (QEMU user-mode)
+java/util/Currency/PropertiesTestRun.java QEMU generic-all
+
+# Category C: ProcessBuilder/System tests (QEMU user-mode process limitations)
+java/lang/ProcessBuilder/Basic.java#id0 QEMU generic-all
+java/lang/ProcessBuilder/Basic.java#id1 QEMU generic-all
+java/lang/ProcessBuilder/FDLeakTest/FDLeakTest.java#fork QEMU generic-all
+java/lang/ProcessBuilder/FDLeakTest/FDLeakTest.java#posix_spawn QEMU generic-all
+java/lang/ProcessBuilder/FDLeakTest/FDLeakTest.java#vfork QEMU generic-all
+java/lang/String/CompactString/MaxSizeUTF16String.java QEMU generic-all
+java/lang/System/LoggerFinder/modules/JDKLoggerForImageTest.java QEMU generic-all
+java/lang/System/LoggerFinder/modules/LoggerInImageTest.java QEMU generic-all
+java/lang/System/LoggerFinder/modules/NamedLoggerForImageTest.java QEMU generic-all
+java/lang/System/LoggerFinder/modules/UnnamedLoggerForImageTest.java QEMU generic-all
+
+# Category D2: Runtime CDS/execstack/modules (QEMU user-mode)
+runtime/cds/NonJVMVariantLocation.java QEMU generic-all
+runtime/cds/TestCDSVMCrash.java QEMU generic-all
+runtime/exceptionMsgs/ArrayIndexOutOfBoundsException/ArrayIndexOutOfBoundsExceptionTest.java#id1 QEMU generic-all
+runtime/execstack/TestCheckJDK.java QEMU generic-all
+runtime/modules/ModulesSymLink.java QEMU generic-all
+
+# Category D3: Langtools (QEMU user-mode)
+tools/javac/6394683/T6394683.java QEMU generic-all
+tools/javac/plugin/AutostartPlugins.java QEMU generic-all
+tools/javac/plugin/InternalAPI.java QEMU generic-all
+tools/javac/processing/T6920317.java QEMU generic-all
+
+# Category D: Module/JShell tests (QEMU user-mode)
+jdk/jshell/JdiBadOptionLaunchExecutionControlTest.java QEMU generic-all
+jdk/modules/etc/DefaultModules.java QEMU generic-all
+jdk/modules/incubator/ImageModules.java QEMU generic-all
+
+# Category E: SA tests (QEMU user-mode)
+serviceability/jvmti/RedefineClasses/RedefineSharedClass.java QEMU generic-all
+serviceability/sa/TestJhsdbJstackWithVirtualThread.java QEMU generic-all
+serviceability/jvmti/SuspendWithObjectMonitorEnter/SuspendWithObjectMonitorEnter.java QEMU generic-all
+
+###############################################################################
+# Additional exclusions from pipeline 1094889 (RVA23 UserMode) analysis
+# Added: 2026-08-05
+###############################################################################
+
+# Category I: CPU feature detection dead zone (user-mode hwprobe omits V)
+# Root cause: QEMU user-mode hwprobe does not advertise the V extension, so
+# HotSpot disables ext_Zvkn ("missing dependent extension(s): v (disabled)")
+# and vm.cpu.features ends up as "rv64 rva rvc rvd rvf rvi rvm zba zbb zbs
+# zfh zfhmin" -- containing neither "aes" nor "zvkn". The upstream guard from
+# JDK-8353695, @requires !(vm.cpu.features ~= ".*aes.*" | ~= ".*zvkn.*"),
+# therefore fails to exclude the test, while -XX:+UseZvkn on the command line
+# still enables AES intrinsics -- so the expected warning "AES instructions are
+# not available on this CPU" is never printed and testUseAES fails.
+# NOT a JDK code bug. Remove this entry once running in QEMU system-mode (real
+# kernel hwprobe reports V + Zvkn) or once user-mode hwprobe advertises V.
+# NOTE: the same dead zone silently SKIPS 24 rvv/zvkn-gated tests (including
+# compiler/cpuflags/TestAESIntrinsicsOnSupportedConfig.java) -- coverage gap
+# tracked separately, do not treat this exclusion as closing that issue.
+compiler/cpuflags/TestAESIntrinsicsOnUnsupportedConfig.java QEMU generic-all
+
+###############################################################################
+# Additional exclusions from pipeline 1104656 analysis
+# Added: 2026-08-12
+###############################################################################
+
+# Category: C2 IR Framework socket unsupported in QEMU user-mode (18 tests)
+# Root cause: the C2 IR test framework (compiler.lib.ir_framework) starts a
+# helper process and connects to the test JVM via a TCP socket. Under QEMU
+# user-mode emulation the socket connect/close fails ("Internal Test
+# Framework exception - please file a bug: Could not close socket" /
+# "Error while cleaning up threads after test"), so every @IR test errors
+# out regardless of compiler correctness.
+# Introduced visibility in pipeline 1104656 (jtreg 8.3 @requires reevaluation
+# now executes these tests instead of skipping them).
+# NOT a JDK code bug. Remove these entries once running in QEMU system-mode
+# or once user-mode networking supports the IR framework socket protocol.
+compiler/c2/irTests/TestAutoVecCountingDownLoop.java QEMU generic-all
+compiler/c2/irTests/TestAutoVectorization2DArray.java QEMU generic-all
+compiler/c2/irTests/TestVectorizationMultiInvar.java QEMU generic-all
+compiler/c2/irTests/TestVectorizeTypeConversion.java QEMU generic-all
+compiler/c2/irTests/TestVectorizeURShiftSubword.java QEMU generic-all
+compiler/vectorization/TestAutoVecIntMinMax.java QEMU generic-all
+compiler/vectorization/TestFloat16VectorConvChain.java QEMU generic-all
+compiler/vectorization/TestFloatConversionsVectorNaN.java QEMU generic-all
+compiler/vectorization/TestNumberOfContinuousZeros.java QEMU generic-all
+compiler/vectorization/TestPopCountVectorLong.java QEMU generic-all
+compiler/vectorization/TestPopulateIndex.java QEMU generic-all
+compiler/vectorization/TestReverseBytes.java QEMU generic-all
+compiler/vectorization/TestRoundVectFloat.java QEMU generic-all
+compiler/vectorization/TestRoundVectRiscv64.java QEMU generic-all
+compiler/vectorization/TestRoundVectorDoubleRandom.java QEMU generic-all
+compiler/vectorization/TestRoundVectorFloatRandom.java QEMU generic-all
+compiler/vectorization/TestSignumVector.java QEMU generic-all
+compiler/vectorization/TestVectorizationNegativeScale.java QEMU generic-all
+
+# Added: 2026-08-26
+# Category: CI environment issues (from pipeline 1117256 / 1118193 analysis)
+# 1) jdk/jshell/LocalStopExecutionTest.java: test hardcodes 30x1s stop-retry window;
+#    under QEMU user-mode, jshell snippet compilation takes >30s, stop() silently
+#    returns during compilation (userCodeRunning=false), all 30 retries exhausted.
+#    Failing consistently since 08-23 (3 of 4 runs). NOT a JDK code bug - the test
+#    is not robust for slow environments. Tracked in SystemMode SM_targeted_langtools.
+# 2) java/util/zip/ZipFile/ZipSourceCache.java: Flow pod filesystem reports mtime
+#    with second-level granularity; test writes the same zip file twice within
+#    the same second -> ZipFile$Source cache key (path+mtime+charset) collides ->
+#    stale Source reused (expected 6 but was 5). Environment FS granularity issue.
+jdk/jshell/LocalStopExecutionTest.java QEMU generic-all
+java/util/zip/ZipFile/ZipSourceCache.java QEMU generic-all
+
+###############################################################################
+# compiler/c2/riscv64 ir_framework @run driver tests (added in v10, 2026-09-13;
+# extended in v11, 2026-09-24)
+#
+# Test VM itself completes normally with exit 0 (all assertions PASS).
+# Failure is in the jtreg driver JVM: QEMU user-mode pthread_kill
+# (sun.nio.ch.NativeThread.signal0) cannot wake the accept thread during
+# ServerSocket.close() -> "Could not close socket" IOException + thread
+# cleanup hang -> TEST RESULT: Error.
+# Verified OK in QEMU system-mode (real kernel) with the same JDK/QEMU build.
+# Affected: TestMaskedWidening, TestWideningMultiply, TestWidenedRotate,
+#           TestZbsImmediate (added 2026-09-10 by RISC-V C2 optimizations),
+#           TestAddWithZeroExtendedInt (added 2026-09-22, MR !30197860;
+#           failure first observed in pipeline 1145231).
+# Remove these entries after QEMU user-mode signal delivery is fixed.
+###############################################################################
+compiler/c2/riscv64/TestMaskedWidening.java QEMU generic-all
+compiler/c2/riscv64/TestWideningMultiply.java QEMU generic-all
+compiler/c2/riscv64/TestWidenedRotate.java QEMU generic-all
+compiler/c2/riscv64/TestZbsImmediate.java QEMU generic-all
+compiler/c2/riscv64/TestAddWithZeroExtendedInt.java QEMU generic-all
+
+###############################################################################
+# jdk25u bring-up exclusions (IR framework thread cleanup under QEMU)
+###############################################################################
+compiler/c2/irTests/TestVectorConditionalMove.java QEMU generic-all
+
+###############################################################################
+# jdk25u full tier1 bring-up exclusions (QEMU user-mode environment)
+###############################################################################
