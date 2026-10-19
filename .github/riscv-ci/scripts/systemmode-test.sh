@@ -144,7 +144,7 @@ cd /mnt/host
   -jdk:/mnt/host/jdk-image \
   -verbose:fail,error,time \
   -timeout:100 \
-  -concurrency:12 \
+  -concurrency:${JTREG_CONCURRENCY:-12} \
   -k:'!headful&!intermittent' \
   -w:/mnt/host/work \
   -r:/mnt/host/report \

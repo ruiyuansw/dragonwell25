@@ -87,9 +87,42 @@ jobs:
           docker ps -aq --filter "name=riscv-build-${{ github.run_id }}" | xargs -r docker rm -f || true
           sudo -n rm -rf build 2>/dev/null || rm -rf build || true
 
+  langtools:
+    name: 'usermode langtools (isolated)'
+    needs: build
+    runs-on: [self-hosted, riscv-ci]
+    timeout-minutes: 900
+    steps:
+      - name: 'Prepare source tree'
+        run: |
+          mkdir -p src
+          tar xzf "$RUN_CACHE/${{ github.run_id }}/source.tar.gz" -C src
+
+      - name: 'Run jtreg under QEMU user-mode'
+        run: |
+          RESULT="$RESULT_CACHE/${{ github.run_id }}/usermode-langtools"
+          mkdir -p "$RESULT"
+          docker run --rm -t --name "riscv-um-${{ github.run_id }}-langtools" \
+            --cpus 28 -m 48g \
+            -e TEST_TARGET='test/langtools/:tier1' \
+            -e TIMEOUT_FACTOR='${{ github.event.inputs.timeout_factor || 96 }}' \
+            -e JTREG_JOBS=10 \
+            -v "$PWD/src:/workspace/src" \
+            -v "$RUN_CACHE/${{ github.run_id }}:/workspace/artifacts:ro" \
+            -v "$RESULT:/workspace/out" \
+            "$IMAGE" \
+            bash /workspace/src/.github/riscv-ci/scripts/usermode-test.sh
+
+      - name: 'Cleanup'
+        if: always()
+        run: |
+          docker ps -aq --filter "name=riscv-um-${{ github.run_id }}-langtools" | xargs -r docker rm -f || true
+          sudo -n rm -rf src 2>/dev/null || rm -rf src || true
+
   usermode:
     name: 'usermode ${{ matrix.name }}'
-    needs: build
+    needs: [build, langtools]
+    if: ${{ always() && needs.build.result == 'success' }}
     runs-on: [self-hosted, riscv-ci]
     timeout-minutes: 900
     strategy:
@@ -100,7 +133,6 @@ jobs:
           - { name: jdk_part1, target: 'test/jdk/:tier1_part1' }
           - { name: jdk_part2, target: 'test/jdk/:tier1_part2' }
           - { name: jdk_part3, target: 'test/jdk/:tier1_part3' }
-          - { name: langtools, target: 'test/langtools/:tier1' }
           - { name: hs_common, target: 'test/hotspot/jtreg/:tier1_common' }
           - { name: hs_runtime, target: 'test/hotspot/jtreg/:tier1_runtime' }
           - { name: hs_serviceability, target: 'test/hotspot/jtreg/:tier1_serviceability' }
@@ -139,7 +171,8 @@ jobs:
 
   systemmode:
     name: 'systemmode ${{ matrix.name }}'
-    needs: build
+    needs: [build, langtools]
+    if: ${{ always() && needs.build.result == 'success' }}
     runs-on: [self-hosted, riscv-ci]
     timeout-minutes: 900
     strategy:
@@ -147,11 +180,10 @@ jobs:
       max-parallel: 2
       matrix:
         include:
-          - { name: targeted_jdk, suite: targeted_jdk }
-          - { name: targeted_langtools, suite: targeted_langtools }
-          - { name: targeted_hotspot, suite: targeted_hotspot }
-          - { name: hotspot_part1, suite: hotspot_part1 }
-          - { name: hotspot_part2, suite: hotspot_part2 }
+          - { name: targeted_jdk, suite: targeted_jdk, conc: 6 }
+          - { name: targeted_hotspot, suite: targeted_hotspot, conc: 8 }
+          - { name: hotspot_part1, suite: hotspot_part1, conc: 12 }
+          - { name: hotspot_part2, suite: hotspot_part2, conc: 12 }
     steps:
       - name: 'Prepare source tree'
         run: |
@@ -167,6 +199,7 @@ jobs:
             --cpus 12 -m 36g \
             -e SUITE='${{ matrix.suite }}' \
             -e SMP=10 -e MEMORY=24G -e VM_TIMEOUT=43200 \
+            -e JTREG_CONCURRENCY='${{ matrix.conc }}' \
             -v "$PWD/src:/workspace/src" \
             -v "$RUN_CACHE/${{ github.run_id }}:/workspace/artifacts:ro" \
             -v "$RESULT:/workspace/out" \
@@ -180,9 +213,44 @@ jobs:
           docker ps -aq --filter "name=riscv-sm-${{ github.run_id }}-${{ matrix.name }}" | xargs -r docker rm -f || true
           sudo -n rm -rf src out 2>/dev/null || rm -rf src out || true
 
+  systemmode_langtools:
+    name: 'systemmode targeted_langtools (isolated)'
+    needs: [usermode, systemmode]
+    if: ${{ always() && needs.build.result == 'success' }}
+    runs-on: [self-hosted, riscv-ci]
+    timeout-minutes: 180
+    steps:
+      - name: 'Prepare source tree'
+        run: |
+          mkdir -p src
+          tar xzf "$RUN_CACHE/${{ github.run_id }}/source.tar.gz" -C src
+
+      - name: 'Run jtreg inside QEMU system-mode guest'
+        run: |
+          RESULT="$RESULT_CACHE/${{ github.run_id }}/systemmode-targeted_langtools"
+          mkdir -p "$RESULT"
+          docker run --rm --privileged \
+            --name "riscv-sm-${{ github.run_id }}-targeted_langtools" \
+            --cpus 16 -m 36g \
+            -e SUITE=targeted_langtools \
+            -e SMP=12 -e MEMORY=24G -e VM_TIMEOUT=7200 \
+            -e JTREG_CONCURRENCY=6 \
+            -v "$PWD/src:/workspace/src" \
+            -v "$RUN_CACHE/${{ github.run_id }}:/workspace/artifacts:ro" \
+            -v "$RESULT:/workspace/out" \
+            -v "$SYSIMG_CACHE:/opt/sysmode-images:ro" \
+            "$IMAGE" \
+            bash /workspace/src/.github/riscv-ci/scripts/systemmode-test.sh
+
+      - name: 'Cleanup'
+        if: always()
+        run: |
+          docker ps -aq --filter "name=riscv-sm-${{ github.run_id }}-targeted_langtools" | xargs -r docker rm -f || true
+          sudo -n rm -rf src 2>/dev/null || rm -rf src || true
+
   cleanup:
     name: 'cleanup run cache'
-    needs: [build, usermode, systemmode]
+    needs: [build, langtools, usermode, systemmode, systemmode_langtools]
     if: always()
     runs-on: [self-hosted, riscv-ci]
     timeout-minutes: 15

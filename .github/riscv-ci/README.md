@@ -48,6 +48,17 @@ The intranet egress proxy does not allow the Azure blob endpoints used by
   defaults to no extra flags) and `timeout_factor` (default `96`).
 - The workflow is serialized per ref; a new push cancels the previous run.
 
+## Job layout
+
+The jtreg JShell tests connect to a remote JVM with a hard-coded 5-second JDI
+timeout, and the SystemMode `targeted_langtools` suite has similar
+timing-sensitive JDI/stop tests. On a 32-core host they fail when they compete
+with the matrix jobs, so they are isolated:
+
+1. `langtools` runs alone (`-cpus 28`) right after the build.
+2. `usermode` (11 targets, max 4) and `systemmode` (4 suites, max 2) run next.
+3. `systemmode_langtools` runs last, alone.
+
 ## Known issues
 
 - `TestAESIntrinsicsOnUnsupportedConfig` in the system-mode `targeted_hotspot`
