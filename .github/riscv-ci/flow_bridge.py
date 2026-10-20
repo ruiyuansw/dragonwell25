@@ -15,6 +15,7 @@ import argparse
 import fcntl
 import json
 import os
+import re
 import socket
 import sys
 import time
@@ -85,6 +86,50 @@ def pod_log(output_path, pod_name):
                raw=True, no_cache=True)
 
 
+# GitHub job logs are public to everyone with repo access; keep internal
+# toolchain/SDK/QEMU/platform paths out of them.
+MASK_PATTERNS = [
+    (re.compile(r"/opt/xuantie-toolchain\S*"), "<toolchain>"),
+    (re.compile(r"/opt/xuantie-qemu\S*"), "<qemu>"),
+    (re.compile(r"/opt/qemu\S*"), "<qemu>"),
+    (re.compile(r"/opt/boot-jdk\S*"), "<boot-jdk>"),
+    (re.compile(r"/opt/jtreg\S*"), "<jtreg>"),
+    (re.compile(r"/opt/sysmode-images\S*"), "<sdk-images>"),
+    (re.compile(r"/opt/gtest\S*"), "<gtest>"),
+    (re.compile(r"/src/nfs/flow\S*"), "<flow-storage>"),
+    (re.compile(r"art\.damo\.xrvm\.cn\S*"), "<registry>"),
+    (re.compile(r"flow\.damo\.xrvm\.cn"), "<flow>"),
+    (re.compile(r"\b1[01]\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"), "<internal-ip>"),
+    (re.compile(r"\b\d{6,8}-[0-9a-f]{8}-default\b"), "<pod>"),
+    (re.compile(r"\bxt-[a-z0-9]{6,}\b", re.I), "<cpu>"),
+]
+FAIL_LINE = re.compile(r"TEST RESULT: (Failed|Error)|^FAILED:|^Error: ")
+
+
+def sanitize(text):
+    for pattern, repl in MASK_PATTERNS:
+        text = pattern.sub(repl, text)
+    return text
+
+
+def result_counts(text):
+    passed = text.count("TEST RESULT: Passed")
+    failed = text.count("TEST RESULT: Failed") + text.count("TEST RESULT: Error")
+    return passed, failed
+
+
+def final_summary(text):
+    lines = [ln.strip() for ln in text.splitlines() if "Test results:" in ln]
+    return sanitize(lines[-1])[:300] if lines else ""
+
+
+def failure_lines(text, limit=20):
+    out = [sanitize(ln.strip())[:220] for ln in text.splitlines()
+           if FAIL_LINE.search(ln.strip())]
+    return out[-limit:]
+
+
+
 def out(key, value):
     path = os.environ.get("GITHUB_OUTPUT")
     if path:
@@ -143,7 +188,7 @@ def trigger(pid, values):
             patch_template(pid, tpl)
     finally:
         fcntl.flock(lock, fcntl.LOCK_UN)
-    print(f"triggered pipeline {pid} history {hid}: {values}")
+    print(f"flow pipeline triggered (history {hid})")
     out("history_id", hid)
     return hid
 
@@ -161,7 +206,7 @@ def node_pod(node):
 
 def wait_node(hid, label, interval, timeout):
     start = time.time()
-    last_log = 0.0
+    last_report = 0.0
     while True:
         try:
             node = next((n for n in nodes(hid) if n["label"] == label), None)
@@ -171,28 +216,48 @@ def wait_node(hid, label, interval, timeout):
         if node:
             status = node["status"]
             pod = node_pod(node)
-            if pod and time.time() - last_log > 300:
+            if pod and time.time() - last_report > 300:
                 try:
-                    text = pod_log(pod["output_path"], pod["name"])
-                    print(f"--- {label} pod={pod['name']} status={status} "
-                          f"({len(text)} B) ---")
-                    print("\n".join(text.splitlines()[-20:]))
-                except Exception as exc:
-                    print(f"log unavailable: {exc}")
-                last_log = time.time()
+                    passed, failed = result_counts(
+                        pod_log(pod["output_path"], pod["name"]))
+                    if passed or failed:
+                        print(f"[{label}] jtreg progress: "
+                              f"passed={passed} failed={failed}")
+                except Exception:
+                    pass
+                last_report = time.time()
             if status in ("success", "error", "failed", "canceled", "cancelled"):
-                pod_name = pod["name"] if pod else "-"
-                print(f"=== node {label} {status} pod={pod_name} ===")
+                text = ""
                 if pod:
                     try:
                         text = pod_log(pod["output_path"], pod["name"])
-                        tail = "\n".join(text.splitlines()[-120:])
-                        print(f"--- {label} final log tail ---\n{tail}")
-                        summary(f"<details><summary>{label} log tail</summary>\n\n"
-                                f"```\n{tail}\n```\n</details>")
                     except Exception as exc:
-                        print(f"final log unavailable: {exc}")
-                summary(f"| {label} | {status} | `{pod_name}` |")
+                        print(f"[{label}] log unavailable: {type(exc).__name__}")
+                print(f"=== {label}: {status} ===")
+                summary(f"| {label} | {status} |")
+                failures = failure_lines(text)
+                if status == "success":
+                    stats = final_summary(text)
+                    if stats:
+                        print(stats)
+                        summary(f"`{stats}`")
+                else:
+                    for line in failures:
+                        print("  " + line)
+                    stats = final_summary(text)
+                    if stats:
+                        print(stats)
+                    if failures:
+                        summary("<details><summary>failed tests</summary>\n\n"
+                                "```\n" + "\n".join(failures) + "\n```\n</details>")
+                    elif text:
+                        print("--- sanitized log tail ---")
+                        tail = [sanitize(ln)[:220]
+                                for ln in text.splitlines()[-30:]]
+                        for line in tail:
+                            print("  " + line)
+                        summary("<details><summary>log tail</summary>\n\n"
+                                "```\n" + "\n".join(tail) + "\n```\n</details>")
                 return 0 if status == "success" else 1
         if timeout and time.time() - start > timeout:
             print(f"timeout waiting for {label}")

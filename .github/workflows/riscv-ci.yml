@@ -6,9 +6,9 @@ name: 'RISC-V CI (Flow)'
 # Xuantie toolchain/QEMU, internal SDK), one runner per Flow node:
 #
 #   slot-01 build-um   -> pipeline 20598 node dragonwell25_Build
-#   slot-02..13        -> pipeline 20598 nodes dw25_UM_<target>
+#   slot-02..13,20..22 -> pipeline 20598 nodes dw25_UM_<target>  (15 tests)
 #   slot-14 build-sm   -> pipeline 20599 node dragonwell25_Build
-#   slot-15..19        -> pipeline 20599 nodes dw25_SM_<suite>
+#   slot-15..19,23..25 -> pipeline 20599 nodes dw25_SM_<suite>   (8 tests)
 #
 # A runner slot label matches exactly one runner, so a GitHub job can never
 # land on a slot another job owns. Flow histories are attached to the run via
@@ -103,18 +103,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: jdk_part1,          slot: '02', timeout: 900,  label: dw25_UM_jdk_part1 }
-          - { name: jdk_part2,          slot: '03', timeout: 900,  label: dw25_UM_jdk_part2 }
-          - { name: jdk_part3,          slot: '04', timeout: 900,  label: dw25_UM_jdk_part3 }
-          - { name: langtools,          slot: '05', timeout: 1500, label: dw25_UM_langtools }
-          - { name: hs_common,          slot: '06', timeout: 900,  label: dw25_UM_hs_common }
-          - { name: hs_runtime,         slot: '07', timeout: 900,  label: dw25_UM_hs_runtime }
-          - { name: hs_serviceability,  slot: '08', timeout: 900,  label: dw25_UM_hs_serviceability }
-          - { name: hs_gc,              slot: '09', timeout: 900,  label: dw25_UM_hs_gc }
-          - { name: hs_compiler_part1,  slot: '10', timeout: 900,  label: dw25_UM_hs_compiler_part1 }
-          - { name: hs_compiler_part2,  slot: '11', timeout: 900,  label: dw25_UM_hs_compiler_part2 }
-          - { name: hs_compiler_part3,  slot: '12', timeout: 900,  label: dw25_UM_hs_compiler_part3 }
-          - { name: lib_test,           slot: '13', timeout: 900,  label: dw25_UM_lib_test }
+          - { name: jdk_part1a,         slot: '02', timeout: 300,  label: dw25_UM_jdk_part1a }
+          - { name: jdk_part1b,         slot: '03', timeout: 300,  label: dw25_UM_jdk_part1b }
+          - { name: jdk_part2,          slot: '04', timeout: 900,  label: dw25_UM_jdk_part2 }
+          - { name: jdk_part3,          slot: '05', timeout: 900,  label: dw25_UM_jdk_part3 }
+          - { name: langtools_1,        slot: '06', timeout: 300,  label: dw25_UM_langtools_1 }
+          - { name: langtools_2,        slot: '07', timeout: 300,  label: dw25_UM_langtools_2 }
+          - { name: langtools_3,        slot: '08', timeout: 300,  label: dw25_UM_langtools_3 }
+          - { name: hs_common,          slot: '09', timeout: 900,  label: dw25_UM_hs_common }
+          - { name: hs_runtime,         slot: '10', timeout: 900,  label: dw25_UM_hs_runtime }
+          - { name: hs_serviceability,  slot: '11', timeout: 900,  label: dw25_UM_hs_serviceability }
+          - { name: hs_gc,              slot: '12', timeout: 900,  label: dw25_UM_hs_gc }
+          - { name: hs_compiler_part1,  slot: '13', timeout: 900,  label: dw25_UM_hs_compiler_part1 }
+          - { name: hs_compiler_part2,  slot: '20', timeout: 900,  label: dw25_UM_hs_compiler_part2 }
+          - { name: hs_compiler_part3,  slot: '21', timeout: 900,  label: dw25_UM_hs_compiler_part3 }
+          - { name: lib_test,           slot: '22', timeout: 900,  label: dw25_UM_lib_test }
     steps:
       - name: 'Checkout bridge'
         uses: actions/checkout@v4
@@ -179,16 +182,19 @@ jobs:
       - self-hosted
       - riscv-bridge
       - slot-${{ matrix.slot }}
-    timeout-minutes: 1500
+    timeout-minutes: ${{ matrix.timeout }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { name: targeted_jdk,       slot: '15', label: dw25_SM_targeted_jdk }
-          - { name: targeted_langtools, slot: '16', label: dw25_SM_targeted_langtools }
-          - { name: targeted_hotspot,   slot: '17', label: dw25_SM_targeted_hotspot }
-          - { name: hotspot_part1,      slot: '18', label: dw25_SM_hotspot_part1 }
-          - { name: hotspot_part2,      slot: '19', label: dw25_SM_hotspot_part2 }
+          - { name: targeted_jdk,       slot: '15', timeout: 300, label: dw25_SM_targeted_jdk }
+          - { name: targeted_langtools, slot: '16', timeout: 300, label: dw25_SM_targeted_langtools }
+          - { name: targeted_hotspot,   slot: '17', timeout: 300, label: dw25_SM_targeted_hotspot }
+          - { name: hotspot_part1a,     slot: '18', timeout: 300, label: dw25_SM_hotspot_part1a }
+          - { name: hotspot_part1b,     slot: '19', timeout: 300, label: dw25_SM_hotspot_part1b }
+          - { name: hotspot_part2a,     slot: '23', timeout: 300, label: dw25_SM_hotspot_part2a }
+          - { name: hotspot_part2b,     slot: '24', timeout: 300, label: dw25_SM_hotspot_part2b }
+          - { name: hotspot_part2c,     slot: '25', timeout: 300, label: dw25_SM_hotspot_part2c }
     steps:
       - name: 'Checkout bridge'
         uses: actions/checkout@v4

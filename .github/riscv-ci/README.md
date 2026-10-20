@@ -7,14 +7,25 @@ compile and test work runs on Flow pods.
 | GitHub job | Runner slot | Flow pipeline | Flow node |
 | --- | --- | --- | --- |
 | `Flow UserMode build` | `slot-01` | `20598` | `dragonwell25_Build` |
-| `usermode jdk_part1/2/3` | `slot-02..04` | `20598` | `dw25_UM_jdk_part1/2/3` |
-| `usermode langtools` | `slot-05` | `20598` | `dw25_UM_langtools` |
-| `usermode hs_common/runtime/serviceability/gc` | `slot-06..09` | `20598` | `dw25_UM_hs_*` |
-| `usermode hs_compiler_part1/2/3` | `slot-10..12` | `20598` | `dw25_UM_hs_compiler_*` |
-| `usermode lib_test` | `slot-13` | `20598` | `dw25_UM_lib_test` |
+| `usermode jdk_part1a/1b` | `slot-02..03` | `20598` | `dw25_UM_jdk_part1a/1b` |
+| `usermode jdk_part2/3` | `slot-04..05` | `20598` | `dw25_UM_jdk_part2/3` |
+| `usermode langtools_1/2/3` | `slot-06..08` | `20598` | `dw25_UM_langtools_1/2/3` |
+| `usermode hs_common/runtime/serviceability/gc` | `slot-09..12` | `20598` | `dw25_UM_hs_*` |
+| `usermode hs_compiler_part1/2/3` | `slot-13`, `slot-20..21` | `20598` | `dw25_UM_hs_compiler_*` |
+| `usermode lib_test` | `slot-22` | `20598` | `dw25_UM_lib_test` |
 | `Flow SystemMode build` | `slot-14` | `20599` | `dragonwell25_Build` |
 | `systemmode targeted_jdk/langtools/hotspot` | `slot-15..17` | `20599` | `dw25_SM_targeted_*` |
-| `systemmode hotspot_part1/2` | `slot-18..19` | `20599` | `dw25_SM_hotspot_part*` |
+| `systemmode hotspot_part1a/1b` | `slot-18..19` | `20599` | `dw25_SM_hotspot_part1a/1b` |
+| `systemmode hotspot_part2a/b/c` | `slot-23..25` | `20599` | `dw25_SM_hotspot_part2a/b/c` |
+
+Every test task is sized for at most ~2 hours on the 16c pods. The UserMode
+split is computed from the checked-out test tree at run time (greedy balance by
+test count), so it follows tests being added or removed; the SystemMode lists
+are split round-robin. Suites that are split carry a 3h Flow max runtime.
+
+SystemMode passes no `-XX:+UseXXX` flags: the guest kernel's hwprobe is the
+single source of truth for V/Zvkn detection. UserMode keeps the pipeline's
+`JVM_OPTIONS` variable (empty by default).
 
 A slot label is attached to exactly one runner and each job runs on exactly one
 slot, so the GitHub job ↔ Flow node pairing is deterministic. Both pipelines
@@ -59,9 +70,9 @@ outputs and mirrored to `/home/jenkins/ci-cache/flow/<run-id>/{um,sm}.history`.
 
 ## Runners
 
-Nineteen self-hosted runners on the build host, one per slot:
+Twenty-five self-hosted runners on the build host, one per slot:
 
-- labels: `self-hosted`, `riscv-bridge`, `slot-01` … `slot-19`
+- labels: `self-hosted`, `riscv-bridge`, `slot-01` … `slot-25`
 - auto-start on boot: systemd units `actions.runner.ruiyuansw-dragonwell25.riscv-ci-NN`
 - outbound proxy configured in each runner's `.env`
   (`http_proxy`/`https_proxy=http://11.122.133.68:3128`, intranet hosts in
