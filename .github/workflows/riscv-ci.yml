@@ -51,6 +51,7 @@ jobs:
   build-um:
     name: 'Flow UserMode build'
     runs-on: [self-hosted, riscv-bridge, slot-01]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 360
     concurrency:
       group: flow-trigger-um
@@ -69,7 +70,6 @@ jobs:
         env:
           FLOW_TOKEN: ${{ secrets.FLOW_TOKEN }}
         run: |
-          test -n "$FLOW_TOKEN" || { echo "FLOW_TOKEN secret is missing (fork PRs cannot use it)"; exit 1; }
           python3 .github/riscv-ci/flow_bridge.py trigger \
             --pipeline "$UM_PIPELINE" \
             --set "SOURCE_REPO=${{ github.event.pull_request.head.repo.clone_url || format('{0}/{1}.git', github.server_url, github.repository) }}" \
@@ -133,6 +133,7 @@ jobs:
   build-sm:
     name: 'Flow SystemMode build'
     runs-on: [self-hosted, riscv-bridge, slot-14]
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     timeout-minutes: 360
     concurrency:
       group: flow-trigger-sm
@@ -151,7 +152,6 @@ jobs:
         env:
           FLOW_TOKEN: ${{ secrets.FLOW_TOKEN }}
         run: |
-          test -n "$FLOW_TOKEN" || { echo "FLOW_TOKEN secret is missing (fork PRs cannot use it)"; exit 1; }
           python3 .github/riscv-ci/flow_bridge.py trigger \
             --pipeline "$SM_PIPELINE" \
             --set "SOURCE_REPO=${{ github.event.pull_request.head.repo.clone_url || format('{0}/{1}.git', github.server_url, github.repository) }}" \
