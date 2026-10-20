@@ -1,94 +1,96 @@
-# RISC-V QEMU CI
+# RISC-V CI (GitHub Actions → Flow)
 
-Cross-compiles this repository for `riscv64-unknown-linux-gnu` and runs the
-tier1 suites under QEMU:
+GitHub Actions is the trigger and status layer. Every job pins one self-hosted
+runner slot and waits for exactly one node of an internal Flow pipeline; all
+compile and test work runs on Flow pods.
 
-- **user-mode** — 12 parallel matrix jobs (`test/jdk`, `test/langtools`,
-  `test/hotspot/jtreg`, `test/lib-test`), each JDK binary wrapped with
-  `qemu-riscv64`.
-- **system-mode** — 5 parallel suites booting a full RISC-V Linux guest
-  (`qemu-system-riscv64`) with virtio-9p shared folders. The test lists live in
-  [`sysmode/`](sysmode); they target the vector/intrinsics tests that cannot run
-  correctly in user-mode.
+| GitHub job | Runner slot | Flow pipeline | Flow node |
+| --- | --- | --- | --- |
+| `Flow UserMode build` | `slot-01` | `20598` | `dragonwell25_Build` |
+| `usermode jdk_part1/2/3` | `slot-02..04` | `20598` | `dw25_UM_jdk_part1/2/3` |
+| `usermode langtools` | `slot-05` | `20598` | `dw25_UM_langtools` |
+| `usermode hs_common/runtime/serviceability/gc` | `slot-06..09` | `20598` | `dw25_UM_hs_*` |
+| `usermode hs_compiler_part1/2/3` | `slot-10..12` | `20598` | `dw25_UM_hs_compiler_*` |
+| `usermode lib_test` | `slot-13` | `20598` | `dw25_UM_lib_test` |
+| `Flow SystemMode build` | `slot-14` | `20599` | `dragonwell25_Build` |
+| `systemmode targeted_jdk/langtools/hotspot` | `slot-15..17` | `20599` | `dw25_SM_targeted_*` |
+| `systemmode hotspot_part1/2` | `slot-18..19` | `20599` | `dw25_SM_hotspot_part*` |
 
-The workflow is [`../../workflows/riscv-ci.yml`](../../workflows/riscv-ci.yml).
+A slot label is attached to exactly one runner and each job runs on exactly one
+slot, so the GitHub job ↔ Flow node pairing is deterministic. Both pipelines
+carry the same pod resources as the internal `jdk25u` setup (16c/32g, build
+plan 16c/32g). SystemMode additionally needs a privileged pod.
 
-## Requirements
+## Internal resources only
 
-Self-hosted runners with the `riscv-ci` label, plus:
+The pipelines never use upstream toolchain or SDK downloads:
 
-| Item | Location |
+| Item | Source |
 | --- | --- |
-| Toolchain image | `art.damo.xrvm.cn/riscv-sw/openjdk/openjdk-buildtest-ub2204:v10` |
-| SystemMode image cache | `/home/jenkins/ci-cache/sysmode-images` (`Image`, `fw_dynamic.bin`, `rootfs.ext4`) |
-| Outbound proxy | `http://11.122.133.68:3128` (runner `.env` + workflow env) |
+| Build/test image | `art.damo.xrvm.cn/riscv-sw/openjdk/openjdk-buildtest-ub2204:v10` |
+| Toolchain / sysroot | `/opt/xuantie-toolchain` (inside the image) |
+| Boot JDK | `/opt/boot-jdk-25` |
+| QEMU | `/opt/xuantie-qemu-devci` (user-mode and system-mode builds) |
+| SystemMode images | Xuantie Linux SDK `XuanTie_V1.4.0-rc3` from `11.122.130.22`, cached at `/opt/sysmode-images` |
+| jtreg | `/opt/jtreg` (8.1) |
 
-The image ships the Xuantie GCC 14.3 sysroot, jtreg 8.1, boot JDK 25 and the
-Dev-CI QEMU 8.2.94 builds. Tests intentionally use **JDK 25 end to end**: a
-guard in every script fails the job if either the source tree or the JDK under
-test is not version 25.
-
-The SystemMode images come from the internal Xuantie Linux SDK. If the cache is
-absent the script downloads the SDK tarball from `11.122.130.22` instead.
-
-## Artifacts
-
-The intranet egress proxy does not allow the Azure blob endpoints used by
-`actions/upload-artifact`, so the jobs exchange files through the runner host:
-
-- `/home/jenkins/ci-cache/runs/<run-id>/` — JDK bundles and `source.tar.gz`,
-  removed when the run finishes.
-- `/home/jenkins/ci-cache/results/<run-id>/<job>/` — jtreg reports and logs,
-  kept for 7 days.
+Both the source tree and the JDK under test are checked to be JDK 25.
 
 ## Triggering
 
-- Push to `master`, or open a pull request against `master`.
-- Manual runs: `workflow_dispatch` with optional `jvm_options` (user-mode only;
-  defaults to no extra flags) and `timeout_factor` (default `96`).
-- The workflow is serialized per ref; a new push cancels the previous run.
+- Push to `master` or `ci/**`, or open a same-repo pull request against `master`.
+- `workflow_dispatch` accepts optional `jvm_options` for the UserMode pipeline.
+- Flow has no working cancel API, so a superseded run is queued, not cancelled
+  (`cancel-in-progress: false`); queuing avoids orphaned Flow pods.
+- Fork PRs are skipped: they cannot read `FLOW_TOKEN` and must not execute on
+  the self-hosted runners.
 
-## Job layout
+The trigger jobs call [`flow_bridge.py`](flow_bridge.py):
 
-The jtreg JShell tests connect to a remote JVM with a hard-coded 5-second JDI
-timeout, and the SystemMode `targeted_langtools` suite has similar
-timing-sensitive JDI/stop tests. On a 32-core host they fail when they compete
-with the matrix jobs, so they are isolated:
+```bash
+flow_bridge.py trigger   --pipeline 20598 --set SOURCE_REPO=... --set ...
+flow_bridge.py wait-node --history <history-id> --label dw25_UM_jdk_part1
+flow_bridge.py show      --history <history-id>
+```
 
-1. `langtools` runs alone (`-cpus 28`) right after the build.
-2. `usermode` (11 targets, max 4) and `systemmode` (4 suites, max 2) run next.
-3. `systemmode_langtools` runs last, alone.
+The Flow token is read from the `FLOW_TOKEN` repository secret, falling back to
+`~/.riscv-flow/auth.json` on the runner host. History IDs are exported as job
+outputs and mirrored to `/home/jenkins/ci-cache/flow/<run-id>/{um,sm}.history`.
+
+## Runners
+
+Nineteen self-hosted runners on the build host, one per slot:
+
+- labels: `self-hosted`, `riscv-bridge`, `slot-01` … `slot-19`
+- auto-start on boot: systemd units `actions.runner.ruiyuansw-dragonwell25.riscv-ci-NN`
+- outbound proxy configured in each runner's `.env`
+  (`http_proxy`/`https_proxy=http://11.122.133.68:3128`, intranet hosts in
+  `no_proxy`)
+
+Register or relabel a runner with a fresh token from
+*Settings → Actions → Runners → New runner*:
+
+```bash
+cd ~/actions-runner-NN
+./config.sh --replace --url https://github.com/ruiyuansw/dragonwell25 \
+  --token <registration-token> --name riscv-ci-NN \
+  --labels riscv-bridge,slot-NN --unattended
+./svc.sh install && ./svc.sh start
+```
+
+## Test exclusions
+
+- [`ProblemList-riscv64-qemu-usermode.txt`](ProblemList-riscv64-qemu-usermode.txt)
+  is applied to all UserMode suites. Entries whose test path no longer exists in
+  the checked-out tree are dropped before jtreg runs.
+- [`sysmode/`](sysmode) holds the five SystemMode test lists used by the Flow
+  suites.
 
 ## Known issues
 
-- `TestAESIntrinsicsOnUnsupportedConfig` in the system-mode `targeted_hotspot`
-  suite currently fails: the forced `-XX:+UseZvkn` flag bypasses CPU feature
-  detection until the corresponding JDK patches land. The job is left failing
-  on purpose rather than masking the failure.
-
-## Reproducing a single job locally
-
-```bash
-# Build
-docker run --rm \
-  -v "$PWD:/workspace/src" -v "$PWD/out:/workspace/out" \
-  art.damo.xrvm.cn/riscv-sw/openjdk/openjdk-buildtest-ub2204:v10 \
-  bash /workspace/src/.github/riscv-ci/scripts/build.sh
-
-# User-mode (needs out/*.tar.gz from the build)
-docker run --rm \
-  -e TEST_TARGET='test/jdk/:tier1_part1' \
-  -v "$PWD:/workspace/src" -v "$PWD/out:/workspace/artifacts:ro" \
-  -v "$PWD/test-out:/workspace/out" \
-  art.damo.xrvm.cn/riscv-sw/openjdk/openjdk-buildtest-ub2204:v10 \
-  bash /workspace/src/.github/riscv-ci/scripts/usermode-test.sh
-
-# System-mode (needs the same artifacts and the image cache)
-docker run --rm --privileged \
-  -e SUITE=targeted_jdk \
-  -v "$PWD:/workspace/src" -v "$PWD/out:/workspace/artifacts:ro" \
-  -v "$PWD/test-out:/workspace/out" \
-  -v /home/jenkins/ci-cache/sysmode-images:/opt/sysmode-images:ro \
-  art.damo.xrvm.cn/riscv-sw/openjdk/openjdk-buildtest-ub2204:v10 \
-  bash /workspace/src/.github/riscv-ci/scripts/systemmode-test.sh
-```
+- `TestAESIntrinsicsOnUnsupportedConfig` in the SystemMode `targeted_hotspot`
+  suite fails until the forced `-XX:+UseZvkn` path is fixed in the JDK: the flag
+  bypasses CPU feature detection. The job is left failing on purpose.
+- UserMode JShell tests need a TTY (`System.console()`), and some JDI-based
+  tests have a hard-coded 5 s connect timeout; the Flow pods provide both the
+  TTY and the CPU headroom.
