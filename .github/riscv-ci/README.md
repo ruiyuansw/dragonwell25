@@ -20,8 +20,15 @@ compile and test work runs on Flow pods.
 
 Every test task is sized for at most ~2 hours on the 16c pods. The UserMode
 split is computed from the checked-out test tree at run time (greedy balance by
-test count), so it follows tests being added or removed; the SystemMode lists
-are split round-robin. Suites that are split carry a 3h Flow max runtime.
+test count) and is not a jtreg built-in: each suite appends its slice to a
+runtime `TEST.groups` group and runs one jtreg invocation with
+`TEST="test/jdk/:dragonwell_jdk_0"`. Passing several paths to `make test` would
+instead start one sequential jtreg batch per path, which is what pushed the
+original tasks past the 3h Flow limit. The SystemMode lists are split
+round-robin. Suites that are split carry a 3h Flow max runtime.
+
+Every suite retries `git clone`/`git fetch` three times before failing, so a
+transient GitHub 5xx does not take down a node.
 
 SystemMode passes no `-XX:+UseXXX` flags: the guest kernel's hwprobe is the
 single source of truth for V/Zvkn detection. UserMode keeps the pipeline's
@@ -96,12 +103,19 @@ cd ~/actions-runner-NN
   the checked-out tree are dropped before jtreg runs.
 - [`sysmode/`](sysmode) holds the five SystemMode test lists used by the Flow
   suites.
+- The SystemMode suites also pass an inline exclude list for tests that cannot
+  work in a QEMU guest: `runtime/cds/NonJVMVariantLocation`,
+  `runtime/cds/TestCDSVMCrash`,
+  `serviceability/jvmti/RedefineClasses/RedefineSharedClass`,
+  `gtest/GTestWrapper` and `gtest/NMTGtests`. They are guarded by
+  `@requires vm.flagless`, so they only started running after the forced
+  `-XX:+UseXXX` flags were removed from SystemMode.
 
 ## Known issues
 
 - `TestAESIntrinsicsOnUnsupportedConfig` in the SystemMode `targeted_hotspot`
-  suite fails until the forced `-XX:+UseZvkn` path is fixed in the JDK: the flag
-  bypasses CPU feature detection. The job is left failing on purpose.
+  suite is skipped now that SystemMode no longer forces `-XX:+UseZvkn`: without
+  the forced flag the test correctly detects the emulated CPU as unsupported.
 - UserMode JShell tests need a TTY (`System.console()`), and some JDI-based
   tests have a hard-coded 5 s connect timeout; the Flow pods provide both the
   TTY and the CPU headroom.
