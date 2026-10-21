@@ -54,6 +54,13 @@ The pipelines never use upstream toolchain or SDK downloads:
 
 Both the source tree and the JDK under test are checked to be JDK 25.
 
+Cross-compiling disables the default CDS archive in upstream configure
+(`not possible with cross compilation`), which made every `-Xshare:on` test
+fail. The build plans (`jdk25u_Build_CheckIn` 146565 and
+`dragonwell25_Build_CheckIn` 147887) therefore run
+`qemu-riscv64 .../bin/java -Xshare:dump` before packaging, so
+`lib/server/classes.jsa` ships in the image.
+
 ## Triggering
 
 - Push to `master` or `ci/**`, or open a same-repo pull request against `master`.
@@ -67,7 +74,7 @@ The trigger jobs call [`flow_bridge.py`](flow_bridge.py):
 
 ```bash
 flow_bridge.py trigger   --pipeline 20598 --set SOURCE_REPO=... --set ...
-flow_bridge.py wait-node --history <history-id> --label dw25_UM_jdk_part1
+flow_bridge.py wait-node --history <history-id> --label dw25_UM_jdk_part1a
 flow_bridge.py show      --history <history-id>
 ```
 
@@ -103,13 +110,14 @@ cd ~/actions-runner-NN
   the checked-out tree are dropped before jtreg runs.
 - [`sysmode/`](sysmode) holds the five SystemMode test lists used by the Flow
   suites.
-- The SystemMode suites also pass an inline exclude list for tests that cannot
-  work in a QEMU guest: `runtime/cds/NonJVMVariantLocation`,
-  `runtime/cds/TestCDSVMCrash`,
-  `serviceability/jvmti/RedefineClasses/RedefineSharedClass`,
-  `gtest/GTestWrapper` and `gtest/NMTGtests`. They are guarded by
-  `@requires vm.flagless`, so they only started running after the forced
-  `-XX:+UseXXX` flags were removed from SystemMode.
+- The SystemMode suites pass an inline exclude list whose only entry is
+  `gtest/GTestWrapper`: under TCG the RISC-V `weak_cmpxchg` LR/SC sequence can
+  fail spuriously when 12 tests run in parallel, so a few gtests are flaky even
+  though they pass standalone. jtreg's exclude format only accepts `#` at the
+  start of a line; trailing comments silently invalidate an entry.
+- SystemMode runs jtreg with `-w`/`-r` on the guest's local ext4 and copies the
+  report and `.jtr` files back to the 9p share. `virtio-9p` cannot mmap files,
+  which used to fail `os.map_memory_to_file` and the NMT gtest variants.
 
 ## Known issues
 
